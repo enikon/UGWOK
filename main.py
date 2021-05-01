@@ -10,6 +10,16 @@ def files_to_numpy(x, dirs):
     return res
 
 
+def labelise(x):
+    p = np.array([[[0, 0, -128]]])
+    r = np.array([1.0, 1.0, 1.0])
+
+    label = [1-np.abs(np.sign(np.dot(i+p, r))) for i in x]
+    mask = [np.abs(np.sign(np.dot(i, r))) for i in x]
+
+    return label, mask
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--dataset', default='../dataset')
@@ -19,14 +29,13 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    np.random.seed(42)
-
     _folder_dataset_names  = set([os.path.splitext(f)[0] for f in os.listdir(args.dataset) if f.endswith(('.jpg', '.png'))])
     _folder_dataset_labels = set([os.path.splitext(f)[0] for f in os.listdir(args.labels ) if f.endswith(('.jpg', '.png'))])
 
-    _main_dataset_names = np.array(list(_folder_dataset_labels))
-    _extra_dataset_names = np.array(list(_folder_dataset_names - _folder_dataset_labels))
+    _main_dataset_names = np.sort(list(_folder_dataset_labels))
+    _extra_dataset_names = np.sort(list(_folder_dataset_names - _folder_dataset_labels))
 
+    np.random.seed(42)
     np.random.shuffle(_main_dataset_names)
     _main_length = len(_main_dataset_names)
 
@@ -42,6 +51,7 @@ if __name__ == '__main__':
         _train_split_names,
         [(args.dataset, '.jpg'), (args.labels, '.png')]
     )
+    y_train, mask_train = labelise(y_train)
 
     h=0
 
