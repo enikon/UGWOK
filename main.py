@@ -21,7 +21,7 @@ def labelise(x):
     p = np.array([[[0, 0, -128]]])
     r = np.array([1.0, 1.0, 1.0])
 
-    label = np.array([1-np.abs(np.sign(np.dot(i+p, r))) for i in x])
+    label = np.array([1 - np.abs(np.sign(np.dot(i + p, r))) for i in x])
     mask = np.array([np.abs(np.sign(np.dot(i, r))) for i in x])
 
     return label, mask
@@ -38,6 +38,15 @@ def extract_x_y_mask(x, args):
 
 
 if __name__ == '__main__':
+
+    physical_devices = tf.config.list_physical_devices('GPU')
+    try:
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    except:
+        # Invalid device or cannot modify virtual devices once initialized.
+        exit(1)
+        pass
+
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--dataset', default='../dataset')
     parser.add_argument('--labels', default='../labels')
@@ -46,8 +55,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    _folder_dataset_names  = set([os.path.splitext(f)[0] for f in os.listdir(args.dataset) if f.endswith(('.jpg', '.png'))])
-    _folder_dataset_labels = set([os.path.splitext(f)[0] for f in os.listdir(args.labels ) if f.endswith(('.jpg', '.png'))])
+    _folder_dataset_names = set(
+        [os.path.splitext(f)[0] for f in os.listdir(args.dataset) if f.endswith(('.jpg', '.png'))])
+    _folder_dataset_labels = set(
+        [os.path.splitext(f)[0] for f in os.listdir(args.labels) if f.endswith(('.jpg', '.png'))])
 
     _main_dataset_names = np.sort(list(_folder_dataset_labels))
     _extra_dataset_names = np.sort(list(_folder_dataset_names - _folder_dataset_labels))
@@ -61,11 +72,11 @@ if __name__ == '__main__':
     _train_length = _main_length - _test_length - _val_length
 
     _train_split_names = _main_dataset_names[:_train_length]
-    _val_split_names = _main_dataset_names[_train_length:_train_length+_val_length]
-    _test_split_names = _main_dataset_names[_train_length+_val_length:]
+    _val_split_names = _main_dataset_names[_train_length:_train_length + _val_length]
+    _test_split_names = _main_dataset_names[_train_length + _val_length:]
 
-    #x_train, y_train, mask_train = extract_x_y_mask(_train_split_names, args)
-    #x_val, y_val, mask_val = extract_x_y_mask(_train_split_names, args)
+    # x_train, y_train, mask_train = extract_x_y_mask(_train_split_names, args)
+    # x_val, y_val, mask_val = extract_x_y_mask(_train_split_names, args)
 
     sets = [
         extract_x_y_mask(_train_split_names, args),
@@ -75,5 +86,4 @@ if __name__ == '__main__':
 
     unet_main(sets)
 
-    h=0
-
+    h = 0

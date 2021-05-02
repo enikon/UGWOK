@@ -70,7 +70,7 @@ def unet_main(sets):
     model.compile(
         optimizer='adam',
         loss=tf.keras.losses.binary_crossentropy,
-        metrics=['accuracy', tf.keras.metrics.MeanIoU(1)]
+        metrics=['accuracy']
     )
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
@@ -79,7 +79,7 @@ def unet_main(sets):
         x=sets[0][0],
         y=sets[0][1],
         epochs=1,
-        batch_size=20,
+        batch_size=16,
         validation_data=(sets[1][0], sets[1][1]),
         callbacks=[tb_cb]
     )
