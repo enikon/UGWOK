@@ -1,4 +1,9 @@
+import os
 import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+from datetime import datetime
 
 
 def unet_pretrained_encoder():
@@ -64,6 +69,20 @@ def unet():
     return tf.keras.Model(inputs=inputs, outputs=x)
 
 
+# TODO: prediction part, later move to prediction function(model, testSet)  or module         START
+def saveImage(imageName, image):
+    cv2.imwrite(imageName + '.jpg', image)
+
+
+def create_mask(pred_mask):
+    return np.argmax(pred_mask, axis=-1)
+
+
+def convert_mask_to_pix(mask):
+    return np.array([list(map(lambda x: (0, 0, 128) if x == 1 else (0, 128, 128), row)) for row in mask])
+# TODO: prediction part, later move to prediction function(model, testSet)  or module         END
+
+
 def unet_main(sets):
 
     model = unet()
@@ -78,15 +97,34 @@ def unet_main(sets):
     model_history = model.fit(
         x=sets[0][0],
         y=sets[0][1],
-        epochs=5,
+        epochs=20,
         batch_size=16,
         validation_data=(sets[1][0], sets[1][1]),
         callbacks=[tb_cb]
     )
 
-    result = model.predict(
+# TODO: prediction part, later move to prediction function(model, testSet) or module
+
+    pred_pm = model.predict(
         x=sets[2][0]
     )
+
+    pred_masks = create_mask(pred_pm)
+
+    now = datetime.now()
+    current_time = now.strftime("%H_%M_%S")
+    saveFolder = 'predictions__' + current_time
+    os.makedirs(saveFolder)
+
+    counter = 0
+    for pred, real in zip(pred_pm, sets[2][1]):
+        mask_pred_image = convert_mask_to_pix(create_mask(pred))
+        # plt.imshow(mask_pred_image) nie działa
+        saveImage(saveFolder + '//img_' + str(counter) + '_pred', mask_pred_image)
+        mask_image_real = convert_mask_to_pix(real)
+        # plt.imshow(mask_image_real) nie działa
+        saveImage(saveFolder + '//img_' + str(counter) + '_real', mask_image_real)
+        counter += 1
 
     pass
 

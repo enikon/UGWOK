@@ -1,11 +1,10 @@
-import tensorflow as tf
 import os
+import tensorflow as tf
 import argparse
 import numpy as np
 import cv2
 
 from unet_main import unet_main
-
 
 def files_to_numpy(x, imgesPath, masksPath):
     red = (0, 0, 128)
