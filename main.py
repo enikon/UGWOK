@@ -7,32 +7,52 @@ import cv2
 from unet_main import unet_main
 
 
-def files_to_numpy(x, dirs):
-    res = [np.array([
+def files_to_numpy(x, imgesPath, masksPath):
+    red = (0, 0, 128)
+    resizeDims = (128, 128)
+
+    resultImages = np.array([
         cv2.resize(
-            cv2.imread(os.path.join(d, i + t)),
-            (128, 128)
+            cv2.imread(os.path.join(imgesPath[0], i + imgesPath[1])),
+            resizeDims
         )
-        for i in x]) for d, t in dirs]
-    return res
+        for i in x])
+
+    resultMasks = np.array([
+        cv2.resize(
+            cv2.imread(os.path.join(masksPath[0], i + masksPath[1])),
+            resizeDims
+        )
+        for i in x])
+
+    # 255 -> black, 0 -> other colors
+    resultBinaryMasks = np.array([
+        cv2.inRange(
+            cv2.resize(
+                cv2.imread(os.path.join(masksPath[0], i + masksPath[1])),
+                resizeDims
+            ),
+            red,
+            red)
+        for i in x])
+
+    return [resultImages, resultMasks, resultBinaryMasks]
 
 
-def labelise(x):
-    p = np.array([[[0, 0, -128]]])
+def labelise(x_mask, x_binary):
     r = np.array([1.0, 1.0, 1.0])
 
-    label = np.array([1 - np.abs(np.sign(np.dot(i + p, r))) for i in x])
-    mask = np.array([np.abs(np.sign(np.dot(i, r))) for i in x])
+    label = np.array([np.abs(np.sign(np.dot(i, 1))) for i in x_binary])
+    mask = np.array([np.abs(np.sign(np.dot(i, r))) for i in x_mask])
 
     return label, mask
 
 
 def extract_x_y_mask(x, args):
-    x_train, y_train = files_to_numpy(
-        x,
-        [(args.dataset, '.jpg'), (args.labels, '.png')]
+    x_train, y_mask, y_binary = files_to_numpy(
+        x, (args.dataset, '.jpg'), (args.labels, '.png')
     )
-    y_train, mask_train = labelise(y_train)
+    y_train, mask_train = labelise(y_mask, y_binary)
 
     return x_train, y_train, mask_train
 

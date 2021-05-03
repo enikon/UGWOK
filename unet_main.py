@@ -54,7 +54,7 @@ def unet():
 
     # This is the last layer of the model
     last = tf.keras.layers.Conv2DTranspose(
-        1, # num channels
+        2, # num channels
         3, strides=2,
         padding='same'
     )  #64x64 -> 128x128
@@ -69,7 +69,7 @@ def unet_main(sets):
     model = unet()
     model.compile(
         optimizer='adam',
-        loss=tf.keras.losses.binary_crossentropy,
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=['accuracy']
     )
 
@@ -78,10 +78,14 @@ def unet_main(sets):
     model_history = model.fit(
         x=sets[0][0],
         y=sets[0][1],
-        epochs=1,
+        epochs=5,
         batch_size=16,
         validation_data=(sets[1][0], sets[1][1]),
         callbacks=[tb_cb]
+    )
+
+    result = model.predict(
+        x=sets[2][0]
     )
 
     pass
