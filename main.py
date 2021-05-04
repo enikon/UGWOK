@@ -6,11 +6,15 @@ import cv2
 import albumentations as albu
 from unet_main import unet_main
 
-AUGMENTATION_MULTIPLIER = 3
+
+IMAGE_DIM_SIZE = 128
+AUGMENTATION_MULTIPLIER = 9
+
 
 transform_train = albu.Compose([
     albu.Flip(),
-    albu.RandomRotate90()
+    albu.RandomRotate90(),
+    albu.RandomResizedCrop(height=IMAGE_DIM_SIZE, width=IMAGE_DIM_SIZE, scale=(0.5, 1.0), p=0.5)
 ])
 
 
@@ -42,7 +46,7 @@ def binarize_masks(masks):
 
 
 def files_to_numpy(x, images_path, masks_path, is_train_set):
-    resizeDims = (128, 128)
+    resizeDims = (IMAGE_DIM_SIZE, IMAGE_DIM_SIZE)
 
     realImages = read_images(x, images_path, resizeDims)
     realMasks = read_images(x, masks_path, resizeDims)
