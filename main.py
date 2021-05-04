@@ -3,37 +3,63 @@ import tensorflow as tf
 import argparse
 import numpy as np
 import cv2
-
+import albumentations as albu
 from unet_main import unet_main
 
-def files_to_numpy(x, imgesPath, masksPath):
+
+IMAGE_DIM_SIZE = 128
+AUGMENTATION_MULTIPLIER = 9
+
+
+transform_train = albu.Compose([
+    albu.Flip(),
+    albu.RandomRotate90(),
+    albu.RandomResizedCrop(height=IMAGE_DIM_SIZE, width=IMAGE_DIM_SIZE, scale=(0.5, 1.0), p=0.5)
+])
+
+
+def read_images(imges_names, path, dim_size):
+    return np.array([cv2.resize(
+        cv2.imread(os.path.join(path[0], i + path[1])),
+        dim_size
+    ) for i in imges_names])
+
+
+def augment_data(images, masks, times=1):
+    resultImages = []
+    resultMasks = []
+
+    for i in range(times):
+        for img, mask in zip(images, masks):
+            augmentation = {"image": img, "mask": mask}
+            augmentation = transform_train(**augmentation)
+            resultImages.append(augmentation["image"])
+            resultMasks.append(augmentation["mask"])
+
+    return np.array(resultImages), np.array(resultMasks)
+
+
+def binarize_masks(masks):
+    # 255 -> red, 0 -> other colors
     red = (0, 0, 128)
-    resizeDims = (128, 128)
+    return np.array([cv2.inRange(m, red, red) for m in masks])
 
-    resultImages = np.array([
-        cv2.resize(
-            cv2.imread(os.path.join(imgesPath[0], i + imgesPath[1])),
-            resizeDims
-        )
-        for i in x])
 
-    resultMasks = np.array([
-        cv2.resize(
-            cv2.imread(os.path.join(masksPath[0], i + masksPath[1])),
-            resizeDims
-        )
-        for i in x])
+def files_to_numpy(x, images_path, masks_path, is_train_set):
+    resizeDims = (IMAGE_DIM_SIZE, IMAGE_DIM_SIZE)
 
-    # 255 -> black, 0 -> other colors
-    resultBinaryMasks = np.array([
-        cv2.inRange(
-            cv2.resize(
-                cv2.imread(os.path.join(masksPath[0], i + masksPath[1])),
-                resizeDims
-            ),
-            red,
-            red)
-        for i in x])
+    realImages = read_images(x, images_path, resizeDims)
+    realMasks = read_images(x, masks_path, resizeDims)
+
+    if is_train_set:
+        augmentedImages, augmentedMasks = augment_data(realImages, realMasks, AUGMENTATION_MULTIPLIER)
+        resultImages = np.concatenate((realImages, augmentedImages))
+        resultMasks = np.concatenate((realMasks, augmentedMasks))
+        resultBinaryMasks = binarize_masks(resultMasks)
+    else:
+        resultImages = realMasks
+        resultMasks = realMasks
+        resultBinaryMasks = binarize_masks(resultMasks)
 
     return [resultImages, resultMasks, resultBinaryMasks]
 
@@ -47,9 +73,9 @@ def labelise(x_mask, x_binary):
     return label, mask
 
 
-def extract_x_y_mask(x, args):
+def extract_x_y_mask(x, paths, is_train_set=False):
     x_train, y_mask, y_binary = files_to_numpy(
-        x, (args.dataset, '.jpg'), (args.labels, '.png')
+        x, (paths.dataset, '.jpg'), (paths.labels, '.png'), is_train_set
     )
     y_train, mask_train = labelise(y_mask, y_binary)
 
@@ -82,7 +108,7 @@ if __name__ == '__main__':
     _main_dataset_names = np.sort(list(_folder_dataset_labels))
     _extra_dataset_names = np.sort(list(_folder_dataset_names - _folder_dataset_labels))
 
-    np.random.seed(42)
+    # np.random.seed(42)
     np.random.shuffle(_main_dataset_names)
     _main_length = len(_main_dataset_names)
 
@@ -98,7 +124,7 @@ if __name__ == '__main__':
     # x_val, y_val, mask_val = extract_x_y_mask(_train_split_names, args)
 
     sets = [
-        extract_x_y_mask(_train_split_names, args),
+        extract_x_y_mask(_train_split_names, args, True),
         extract_x_y_mask(_val_split_names, args),
         extract_x_y_mask(_test_split_names, args)
     ]
