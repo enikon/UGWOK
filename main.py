@@ -55,17 +55,16 @@ def files_to_numpy(x, images_path, masks_path, is_train_set):
         augmentedImages, augmentedMasks = augment_data(realImages, realMasks, AUGMENTATION_MULTIPLIER)
         resultImages = np.concatenate((realImages, augmentedImages))
         resultMasks = np.concatenate((realMasks, augmentedMasks))
-        resultBinaryMasks = binarize_masks(resultMasks)
     else:
         resultImages = realMasks
         resultMasks = realMasks
-        resultBinaryMasks = binarize_masks(resultMasks)
 
-    return [resultImages, resultMasks, resultBinaryMasks]
+    return [resultImages, resultMasks]
 
 
-def labelise(x_mask, x_binary):
+def labelise(x_mask):
     r = np.array([1.0, 1.0, 1.0])
+    x_binary = binarize_masks(x_mask)
 
     label = np.array([np.abs(np.sign(np.dot(i, 1))) for i in x_binary])
     mask = np.array([np.abs(np.sign(np.dot(i, r))) for i in x_mask])
@@ -74,10 +73,10 @@ def labelise(x_mask, x_binary):
 
 
 def extract_x_y_mask(x, paths, is_train_set=False):
-    x_train, y_mask, y_binary = files_to_numpy(
+    x_train, y_mask = files_to_numpy(
         x, (paths.dataset, '.jpg'), (paths.labels, '.png'), is_train_set
     )
-    y_train, mask_train = labelise(y_mask, y_binary)
+    y_train, mask_train = labelise(y_mask)
 
     return x_train, y_train, mask_train
 
