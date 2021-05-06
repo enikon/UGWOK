@@ -139,9 +139,10 @@ def IoU_2_chanels(y_true_f, y_pred_img):
     """
     y_true = tf.cast(y_true_f, dtype=tf.int32)
     y_pred = tf.argmax(y_pred_img, axis=-1, output_type=tf.int32)
-    I = tf.reduce_sum(y_true * y_pred)
-    U = tf.reduce_sum(y_true + y_pred) - I
-    return tf.reduce_mean(I / U)
+    I = tf.reduce_sum(y_true * y_pred, axis=(1, 2))
+    U = tf.reduce_sum(y_true + y_pred, axis=(1, 2)) - I
+    result = tf.reduce_mean(I / U)
+    return result
 
 
 def train_unet(sets):
@@ -150,7 +151,7 @@ def train_unet(sets):
     model.compile(
         optimizer='adam',
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=['accuracy', IoU, IoU_2_chanels]
+        metrics=['accuracy', IoU_2_chanels]
     )
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
