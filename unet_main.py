@@ -5,9 +5,8 @@ import matplotlib.pyplot as plt
 import cv2
 from datetime import datetime
 
-from sklearn.utils import class_weight
-
 IMAGE_DIM_SIZE = 128
+NUMBER_OF_CHANNELS = 2
 
 
 def unet_pretrained_encoder():
@@ -63,7 +62,7 @@ def unet():
 
     # This is the last layer of the model
     last = tf.keras.layers.Conv2DTranspose(
-        2,  # num channels
+        NUMBER_OF_CHANNELS,
         3, strides=2,
         padding='same'
     )  # 64x64 -> 128x128
@@ -105,13 +104,53 @@ def add_sample_weights(label, weights):
 #   argmax + wyliczenie metryk dla kolejnych tresholds (z pred)
 
 
+#TODO: rozkminic czy ok, prawdopodobnie trzba będzie uwzględnić wymiar batchy
+def IoU(y_true_f, y_pred_img):
+    """
+    Liczone dla każdego kanału
+    """
+    y_true = tf.cast(y_true_f, dtype=tf.int32)
+    y_pred = tf.argmax(y_pred_img, axis=-1, output_type=tf.int32)
+    print(y_true)
+    print(y_pred)
+    for i in range(NUMBER_OF_CHANNELS):
+        curr_channel = tf.constant(i)
+        print(curr_channel)
+        c_true = tf.equal(y_true, curr_channel)
+        c_pred = tf.equal(y_pred, curr_channel)
+        print(c_true)
+        print(c_pred)
+        I_local = tf.reduce_sum(tf.cast(tf.logical_and(c_true, c_pred), dtype=tf.int32))
+        U_local = tf.reduce_sum(tf.cast(tf.logical_or(c_true, c_pred), dtype=tf.int32))
+        print(I_local)
+        print(U_local)
+        print(I_local / U_local)
+        if i == 0:
+            res = (I_local / U_local)
+        else:
+            res = res + (I_local / U_local)
+            print(res + (I_local / U_local))
+    return tf.cast(res / tf.constant(NUMBER_OF_CHANNELS, dtype=tf.float64), dtype=tf.float32)
+
+
+def IoU_2_chanels(y_true_f, y_pred_img):
+    """
+    Liczone tylko dla czerwonej maski
+    """
+    y_true = tf.cast(y_true_f, dtype=tf.int32)
+    y_pred = tf.argmax(y_pred_img, axis=-1, output_type=tf.int32)
+    I = tf.reduce_sum(y_true * y_pred)
+    U = tf.reduce_sum(y_true + y_pred) - I
+    return tf.reduce_mean(I / U)
+
+
 def train_unet(sets):
     model = unet()
     # TODO: dodać IOU z zadania
     model.compile(
         optimizer='adam',
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=['accuracy']
+        metrics=['accuracy', IoU, IoU_2_chanels]
     )
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
