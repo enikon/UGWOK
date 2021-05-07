@@ -8,7 +8,7 @@ from unet_main import unet_main
 
 
 IMAGE_DIM_SIZE = 128
-AUGMENTATION_MULTIPLIER = 9
+AUGMENTATION_MULTIPLIER = 15
 
 
 transform_train = albu.Compose([
@@ -56,7 +56,7 @@ def files_to_numpy(x, images_path, masks_path, is_train_set):
         resultImages = np.concatenate((realImages, augmentedImages))
         resultMasks = np.concatenate((realMasks, augmentedMasks))
     else:
-        resultImages = realMasks
+        resultImages = realImages
         resultMasks = realMasks
 
     return [resultImages, resultMasks]
