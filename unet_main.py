@@ -104,33 +104,23 @@ def add_sample_weights(label, weights):
 #   argmax + wyliczenie metryk dla kolejnych tresholds (z pred)
 
 
-#TODO: rozkminic czy ok, prawdopodobnie trzba będzie uwzględnić wymiar batchy
 def IoU(y_true_f, y_pred_img):
     """
     Liczone dla każdego kanału
     """
     y_true = tf.cast(y_true_f, dtype=tf.int32)
     y_pred = tf.argmax(y_pred_img, axis=-1, output_type=tf.int32)
-    print(y_true)
-    print(y_pred)
     for i in range(NUMBER_OF_CHANNELS):
         curr_channel = tf.constant(i)
-        print(curr_channel)
         c_true = tf.equal(y_true, curr_channel)
         c_pred = tf.equal(y_pred, curr_channel)
-        print(c_true)
-        print(c_pred)
-        I_local = tf.reduce_sum(tf.cast(tf.logical_and(c_true, c_pred), dtype=tf.int32))
-        U_local = tf.reduce_sum(tf.cast(tf.logical_or(c_true, c_pred), dtype=tf.int32))
-        print(I_local)
-        print(U_local)
-        print(I_local / U_local)
+        I_local = tf.reduce_sum(tf.cast(tf.logical_and(c_true, c_pred), dtype=tf.int32), axis=(1, 2))
+        U_local = tf.reduce_sum(tf.cast(tf.logical_or(c_true, c_pred), dtype=tf.int32), axis=(1, 2))
         if i == 0:
             res = (I_local / U_local)
         else:
             res = res + (I_local / U_local)
-            print(res + (I_local / U_local))
-    return tf.cast(res / tf.constant(NUMBER_OF_CHANNELS, dtype=tf.float64), dtype=tf.float32)
+    return tf.reduce_mean(tf.cast(res / tf.constant(NUMBER_OF_CHANNELS, dtype=tf.float64), dtype=tf.float32))
 
 
 def IoU_2_chanels(y_true_f, y_pred_img):
@@ -151,7 +141,7 @@ def train_unet(sets):
     model.compile(
         optimizer='adam',
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=['accuracy', IoU_2_chanels]
+        metrics=['accuracy', IoU_2_chanels, IoU]
     )
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
@@ -162,7 +152,7 @@ def train_unet(sets):
         x=sets[0][0],
         y=sets[0][1],
         sample_weight=sample_weights,
-        epochs=20,
+        epochs=100,
         batch_size=16,
         validation_data=(sets[1][0], sets[1][1]),
         callbacks=[tb_cb]
@@ -185,14 +175,15 @@ def predict_unet(model, test_set):
     return pred_masks
 
 
-def save_masks_cmp(pred_masks, real_masks):
+def save_masks_cmp(images, pred_masks, real_masks):
     now = datetime.now()
     current_time = now.strftime("%Y%m%d-%H%M%S")
     saveFolder = 'predictions__' + current_time
     os.makedirs(saveFolder)
 
     counter = 0
-    for pred, real in zip(pred_masks, real_masks):
+    for image, pred, real in zip(images, pred_masks, real_masks):
+        save_image(saveFolder + '//img_' + str(counter), image)
         mask_pred_image = convert_mask_to_pix(pred)
         # plt.imshow(mask_pred_image) nie działa
         save_image(saveFolder + '//img_' + str(counter) + '_pred', mask_pred_image)
@@ -206,6 +197,6 @@ def unet_main(sets):
     model, model_history = train_unet(sets)
     evaluate_unet(model, sets)
     pred_masks = predict_unet(model, sets[2][0])
-    save_masks_cmp(pred_masks, sets[2][1])
+    save_masks_cmp(sets[2][0], pred_masks, sets[2][1])
 
     pass
