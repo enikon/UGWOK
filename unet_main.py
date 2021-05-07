@@ -135,26 +135,39 @@ def IoU_2_chanels(y_true_f, y_pred_img):
     return result
 
 
+class UpdatedMeanIoU(tf.keras.metrics.MeanIoU):
+    def __init__(self,
+                 num_classes=None,
+                 name=None,
+                 dtype=None):
+        super(UpdatedMeanIoU, self).__init__(num_classes=num_classes, name=name, dtype=dtype)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred = tf.math.argmax(y_pred, axis=-1)
+        return super().update_state(y_true, y_pred, sample_weight)
+
+
 def train_unet(sets):
     model = unet()
     # TODO: dodać IOU z zadania
     model.compile(
         optimizer='adam',
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=['accuracy', IoU_2_chanels, IoU]
+        metrics=['accuracy', UpdatedMeanIoU(num_classes=2), IoU_2_chanels, IoU]
     )
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
 
-    sample_weights = add_sample_weights(sets[0][1], [1.0, 1.5])
+    # sample_weights = add_sample_weights(sets[0][1], [1.0, 1.5])
+    sample_weights = sets[0][2]
 
     model_history = model.fit(
         x=sets[0][0],
         y=sets[0][1],
         sample_weight=sample_weights,
         epochs=100,
-        batch_size=16,
-        validation_data=(sets[1][0], sets[1][1]),
+        batch_size=4,
+        validation_data=(sets[1][0], sets[1][1], sets[1][2]),
         callbacks=[tb_cb]
     )
     return model, model_history
