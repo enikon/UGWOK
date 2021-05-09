@@ -6,6 +6,7 @@ from datetime import datetime
 
 IMAGE_DIM_SIZE = 128
 NUMBER_OF_CHANNELS = 2
+THRESHOLDS = [round(x * 0.05, 2) + 0.5 for x in range(0, 10)]  # 0.5 ... 0.95
 
 
 def unet_pretrained_encoder():
@@ -90,9 +91,9 @@ def add_sample_weights(label, weights):
     return sample_weights
 
 
-def IoU(y_true_f, y_pred_img):
+def IoU_vector(y_true_f, y_pred_img):
     """
-    Liczone dla każdego kanału
+    Liczone dla każdego kanału - w wyniku otrzymuje się wektor zawierający IoU dla każdego elementu batcha (bez uśrednienia)
     """
     y_true = tf.cast(y_true_f, dtype=tf.int32)
     y_pred = tf.argmax(y_pred_img, axis=-1, output_type=tf.int32)
@@ -106,10 +107,26 @@ def IoU(y_true_f, y_pred_img):
             res = (I_local / U_local)
         else:
             res = res + (I_local / U_local)
-    return tf.reduce_mean(tf.cast(res / tf.constant(NUMBER_OF_CHANNELS, dtype=tf.float64), dtype=tf.float32))
+    return tf.cast(res / tf.constant(NUMBER_OF_CHANNELS, dtype=tf.float64), dtype=tf.float32)
 
 
-def IoU_2_chanels(y_true_f, y_pred_img):
+def IoU(y_true_f, y_pred_img):
+    return tf.reduce_mean(IoU_vector(y_true_f, y_pred_img))
+
+
+def Mean_AP(y_true_f, y_pred_img):
+    iou_vector = IoU_vector(y_true_f, y_pred_img)
+    for t in THRESHOLDS:
+        threshold = tf.constant(t, dtype=tf.float32)
+        if t == THRESHOLDS[0]:
+            result = tf.reduce_mean(tf.cast(tf.greater(iou_vector, threshold), dtype=tf.float32))
+        else:
+            result = result + tf.reduce_mean(tf.cast(tf.greater(iou_vector, t), dtype=tf.float32))
+    k = result / tf.constant(len(THRESHOLDS), dtype=tf.float32)
+    return k
+
+
+def IoU_binary(y_true_f, y_pred_img):
     """
     Liczone tylko dla czerwonej maski
     """
@@ -138,7 +155,7 @@ def train_unet(sets):
     model.compile(
         optimizer='adam',
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=['accuracy', UpdatedMeanIoU(num_classes=2), IoU_2_chanels, IoU]
+        metrics=['accuracy', Mean_AP, UpdatedMeanIoU(num_classes=2), IoU, IoU_binary]
     )
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
@@ -164,6 +181,7 @@ def evaluate_unet(model, sets):
     model.evaluate(
         x=sets[2][0],
         y=sets[2][1],
+        sample_weight=sets[2][2]
     )
 
 
