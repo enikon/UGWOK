@@ -1,7 +1,6 @@
 import os
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
 import cv2
 from datetime import datetime
 
@@ -91,19 +90,6 @@ def add_sample_weights(label, weights):
     return sample_weights
 
 
-# TODO: jakiś przykład IOU
-# def mean_iou(y_true, y_pred):
-#     th = 0.5
-#     y_pred_ = tf.to_int32(y_pred > th)
-#     score, up_opt = tf.metrics.mean_iou(y_true, y_pred_, 2)
-#     K.get_session().run(tf.local_variables_initializer())
-#     with tf.control_dependencies([up_opt]):
-#         score = tf.identity(score)
-#     return score
-#
-#   argmax + wyliczenie metryk dla kolejnych tresholds (z pred)
-
-
 def IoU(y_true_f, y_pred_img):
     """
     Liczone dla każdego kanału
@@ -149,7 +135,6 @@ class UpdatedMeanIoU(tf.keras.metrics.MeanIoU):
 
 def train_unet(sets):
     model = unet()
-    # TODO: dodać IOU z zadania
     model.compile(
         optimizer='adam',
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
@@ -198,10 +183,8 @@ def save_masks_cmp(images, pred_masks, real_masks):
     for image, pred, real in zip(images, pred_masks, real_masks):
         save_image(saveFolder + '//img_' + str(counter), image)
         mask_pred_image = convert_mask_to_pix(pred)
-        # plt.imshow(mask_pred_image) nie działa
         save_image(saveFolder + '//img_' + str(counter) + '_pred', mask_pred_image)
         mask_image_real = convert_mask_to_pix(real)
-        # plt.imshow(mask_image_real) nie działa
         save_image(saveFolder + '//img_' + str(counter) + '_real', mask_image_real)
         counter += 1
 
