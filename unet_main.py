@@ -91,7 +91,7 @@ def add_sample_weights(label, weights):
     return sample_weights
 
 
-def IoU_vector(y_true_f, y_pred_img):
+def iou_vector(y_true_f, y_pred_img):
     """
     Liczone dla każdego kanału - w wyniku otrzymuje się wektor zawierający IoU dla każdego elementu batcha (bez uśrednienia)
     """
@@ -110,23 +110,23 @@ def IoU_vector(y_true_f, y_pred_img):
     return tf.cast(res / tf.constant(NUMBER_OF_CHANNELS, dtype=tf.float64), dtype=tf.float32)
 
 
-def IoU(y_true_f, y_pred_img):
-    return tf.reduce_mean(IoU_vector(y_true_f, y_pred_img))
+def iou(y_true_f, y_pred_img):
+    return tf.reduce_mean(iou_vector(y_true_f, y_pred_img))
 
 
-def Mean_AP(y_true_f, y_pred_img):
-    iou_vector = IoU_vector(y_true_f, y_pred_img)
+def mean_ap(y_true_f, y_pred_img):
+    iou_vec = iou_vector(y_true_f, y_pred_img)
     for t in THRESHOLDS:
         threshold = tf.constant(t, dtype=tf.float32)
         if t == THRESHOLDS[0]:
-            result = tf.reduce_mean(tf.cast(tf.greater(iou_vector, threshold), dtype=tf.float32))
+            result = tf.reduce_mean(tf.cast(tf.greater(iou_vec, threshold), dtype=tf.float32))
         else:
-            result = result + tf.reduce_mean(tf.cast(tf.greater(iou_vector, t), dtype=tf.float32))
+            result = result + tf.reduce_mean(tf.cast(tf.greater(iou_vec, t), dtype=tf.float32))
     k = result / tf.constant(len(THRESHOLDS), dtype=tf.float32)
     return k
 
 
-def IoU_binary(y_true_f, y_pred_img):
+def iou_binary(y_true_f, y_pred_img):
     """
     Liczone tylko dla czerwonej maski
     """
@@ -155,7 +155,7 @@ def train_unet(sets):
     model.compile(
         optimizer='adam',
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=['accuracy', Mean_AP, UpdatedMeanIoU(num_classes=2), IoU, IoU_binary]
+        metrics=['accuracy', mean_ap, UpdatedMeanIoU(num_classes=2), iou, iou_binary]
     )
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
