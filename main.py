@@ -8,7 +8,7 @@ from unet_main import unet_main
 
 
 IMAGE_DIM_SIZE = 128
-AUGMENTATION_MULTIPLIER = 15
+AUGMENTATION_MULTIPLIER = 1#15
 
 
 transform_train = albu.Compose([
