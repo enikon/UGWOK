@@ -10,8 +10,8 @@ from common import *
 IMAGE_DIM_SIZE = 128
 AUGMENTATION_MULTIPLIER = 1#15
 
-#debug
-tf.config.experimental_run_functions_eagerly(True)
+# FOR DEBUGGING
+# tf.config.experimental_run_functions_eagerly(True)
 
 transform_train = albu.Compose([
     albu.Flip(),

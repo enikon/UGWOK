@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-
+import math
 import cv2
 
 from metrics import *
@@ -93,11 +93,16 @@ def add_sample_weights(label, weights):
 
 
 def train_unet(sets):
+
+    BATCH_SIZE = 4
+    EPOCHS = 100
+
     model = unet()
     model.compile(
         optimizer='adam',
         loss=tf.keras.losses.BinaryCrossentropy(),
-        run_eagerly=True,
+        # FOR DEBUGGING
+        # run_eagerly=True,
         metrics=[
             tf.keras.metrics.BinaryAccuracy() if NUMBER_OF_CHANNELS == 1 else tf.keras.metrics.Accuracy()
             , UpdatedThresholdMeanIoU(NUMBER_OF_CHANNELS, 0.5)
@@ -107,6 +112,8 @@ def train_unet(sets):
     )
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
+    m_ckpt_cb = tf.keras.callbacks.ModelCheckpoint(filepath='../models/last.h5', save_freq=math.ceil(sets[0][0].shape[0] / BATCH_SIZE), verbose=1)
+    m_best_ckpt_cb = tf.keras.callbacks.ModelCheckpoint(filepath='../models/best.h5', save_best_only=True, verbose=1)
 
     # sample_weights = add_sample_weights(sets[0][1], [1.0, 1.5])
     sample_weights = sets[0][2]
@@ -115,10 +122,10 @@ def train_unet(sets):
         x=sets[0][0],
         y=sets[0][1],
         sample_weight=sample_weights,
-        epochs=100,
-        batch_size=4,
+        epochs=EPOCHS,
+        batch_size=BATCH_SIZE,
         validation_data=(sets[1][0], sets[1][1], sets[1][2]),
-        callbacks=[tb_cb]
+        callbacks=[tb_cb, m_ckpt_cb, m_best_ckpt_cb]
     )
     return model, model_history
 
