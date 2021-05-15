@@ -1,5 +1,6 @@
 from common import *
 import tensorflow as tf
+from tensorflow.python.ops import math_ops, array_ops
 import numpy as np
 
 
@@ -56,16 +57,49 @@ def iou_binary(y_true_f, y_pred_img):
 
 class UpdatedThresholdMeanIoU(tf.keras.metrics.MeanIoU):
     def __init__(self, num_classes=None, threshold=0.5, name=None, dtype=None):
-        super(UpdatedThresholdMeanIoU, self).__init__(num_classes=num_classes, name=name, dtype=dtype)
+        super(UpdatedThresholdMeanIoU, self).__init__(
+            num_classes=(2 if num_classes == 1 else num_classes), name=name, dtype=dtype)
         self.threshold = threshold
+        self.num_classes_output = num_classes
 
     def update_state(self, y_true, y_pred, sample_weight=None):
 
-        y_probs = tf.nn.softmax(y_pred, axis=-1, name=None)
-        y_probs_base = tf.split(y_probs, 2, axis=-1)[1]
-        y_pred = tf.where(y_probs_base > self.threshold, 1, 0)
+        if self.num_classes_output >= 2:
+            y_probs = tf.nn.softmax(y_pred, axis=-1, name=None)
+            y_probs_out = tf.split(y_probs, 2, axis=-1)[1]
+        else:
+            y_probs_out = y_pred
+
+        y_pred = tf.where(y_probs_out > self.threshold, 1, 0)
 
         return super().update_state(y_true, y_pred, sample_weight)
+
+    def result(self):
+        if self.num_classes_output >= 2:
+            return super().result()
+        else:
+            # super() copy:
+
+            """Compute the mean intersection-over-union via the confusion matrix."""
+            sum_over_row = math_ops.cast(
+                math_ops.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+            sum_over_col = math_ops.cast(
+                math_ops.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+            true_positives = math_ops.cast(
+                array_ops.tensor_diag_part(self.total_cm), dtype=self._dtype)
+
+            # sum_over_row + sum_over_col =
+            #     2 * true_positives + false_positives + false_negatives.
+            denominator = sum_over_row + sum_over_col - true_positives
+
+            # The mean is only computed over classes that appear in the
+            # label or prediction tensor. If the denominator is 0, we need to
+            # ignore the class.
+            num_valid_entries = math_ops.reduce_sum(
+                math_ops.cast(math_ops.not_equal(denominator, 0), dtype=self._dtype))
+
+            iou = math_ops.div_no_nan(true_positives, denominator)
+            return iou[1]
 
 
 class SteppedMeanIoU(tf.keras.metrics.Metric):

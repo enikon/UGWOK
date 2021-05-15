@@ -5,11 +5,13 @@ import numpy as np
 import cv2
 import albumentations as albu
 from unet_main import unet_main
-
+from common import *
 
 IMAGE_DIM_SIZE = 128
 AUGMENTATION_MULTIPLIER = 1#15
 
+#debug
+tf.config.experimental_run_functions_eagerly(True)
 
 transform_train = albu.Compose([
     albu.Flip(),
@@ -66,8 +68,12 @@ def labelise(x_mask):
     r = np.array([1.0, 1.0, 1.0])
     x_binary = binarize_masks(x_mask)
 
-    label = np.array([np.abs(np.sign(np.dot(i, 1))) for i in x_binary])
-    mask = np.array([np.abs(np.sign(np.dot(i, r))) for i in x_mask])
+    if NUMBER_OF_CHANNELS >= 2:
+        label = np.array([np.abs(np.sign(np.dot(i, 1))) for i in x_binary], axis=-1)
+        mask = np.array([np.abs(np.sign(np.dot(i, r))) for i in x_mask], axis=-1)
+    else:
+        label = np.expand_dims([np.abs(np.sign(np.dot(i, 1))) for i in x_binary], axis=-1)
+        mask = np.expand_dims([np.abs(np.sign(np.dot(i, r))) for i in x_mask], axis=-1)
 
     return label, mask
 
@@ -77,7 +83,6 @@ def extract_x_y_mask(x, paths, is_train_set=False):
         x, (paths.dataset, '.jpg'), (paths.labels, '.png'), is_train_set
     )
     y_train, mask_train = labelise(y_mask)
-
     return x_train, y_train, mask_train
 
 
@@ -96,7 +101,6 @@ if __name__ == '__main__':
     parser.add_argument('--labels', default='../labels')
     parser.add_argument('--val_split', default=0.15)
     parser.add_argument('--test_split', default=0.15)
-
     args = parser.parse_args()
 
     _folder_dataset_names = set(

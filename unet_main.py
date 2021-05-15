@@ -65,6 +65,10 @@ def unet():
     )  # 64x64 -> 128x128
 
     x = last(x)
+    if NUMBER_OF_CHANNELS >= 2:
+        x = tf.keras.activations.softmax(x)
+    else:
+        x = tf.keras.activations.sigmoid(x)
 
     return tf.keras.Model(inputs=inputs, outputs=x)
 
@@ -92,12 +96,14 @@ def train_unet(sets):
     model = unet()
     model.compile(
         optimizer='adam',
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        #run_eagerly=True,
-        metrics=['accuracy',
-                 UpdatedThresholdMeanIoU(2, 0.5),
-                 SteppedMeanIoU(num_classes=2, thresholds=THRESHOLDS),
-                 iou, iou_binary, mean_ap]
+        loss=tf.keras.losses.BinaryCrossentropy(),
+        run_eagerly=True,
+        metrics=[
+            tf.keras.metrics.BinaryAccuracy() if NUMBER_OF_CHANNELS == 1 else tf.keras.metrics.Accuracy()
+            , UpdatedThresholdMeanIoU(NUMBER_OF_CHANNELS, 0.5)
+            , SteppedMeanIoU(num_classes=NUMBER_OF_CHANNELS, thresholds=THRESHOLDS)
+            #, iou, iou_binary, mean_ap
+        ]
     )
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
@@ -118,8 +124,7 @@ def train_unet(sets):
 
 
 def evaluate_unet(model, sets):
-    print("")
-    print("EVALUATION")
+    print("\nEVALUATION")
     model.evaluate(
         x=sets[2][0],
         y=sets[2][1],
@@ -155,4 +160,3 @@ def unet_main(sets):
     pred_masks = predict_unet(model, sets[2][0])
     save_masks_cmp(sets[2][0], pred_masks, sets[2][1])
 
-    pass
