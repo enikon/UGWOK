@@ -161,9 +161,3 @@ def save_masks_cmp(images, pred_masks, real_masks):
         counter += 1
 
 
-def unet_main(sets):
-    model, model_history = train_unet(sets)
-    evaluate_unet(model, sets)
-    pred_masks = predict_unet(model, sets[2][0])
-    save_masks_cmp(sets[2][0], pred_masks, sets[2][1])
-
