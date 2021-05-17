@@ -33,10 +33,8 @@ def augment_data(images, masks, times=1):
     return np.array(resultImages), np.array(resultMasks)
 
 
-def binarize_masks(masks):
-    # 255 -> red, 0 -> other colors
-    red = (0, 0, 128)
-    return np.array([cv2.inRange(m, red, red) for m in masks])
+def binarize_masks_for_colour(masks, colour):
+    return np.array([cv2.inRange(m, colour, colour) for m in masks])
 
 
 def files_to_numpy(x, images_path, masks_path, is_train_set):
@@ -56,16 +54,16 @@ def files_to_numpy(x, images_path, masks_path, is_train_set):
     return [resultImages, resultMasks]
 
 
-def labelise(x_mask):
-    r = np.array([1.0, 1.0, 1.0])
-    x_binary = binarize_masks(x_mask)
+def labelise(x):
+    x_binary = binarize_masks_for_colour(x, (0, 0, 128))
+    x_mask = binarize_masks_for_colour(x, (0, 0, 0))
 
     if NUMBER_OF_CHANNELS >= 2:
-        label = np.array([np.abs(np.sign(np.dot(i, 1))) for i in x_binary], axis=-1)
-        mask = np.array([np.abs(np.sign(np.dot(i, r))) for i in x_mask], axis=-1)
+        label = np.array([np.sign(i) for i in x_binary])
+        mask = np.array([1 - np.sign(i) for i in x_mask])
     else:
-        label = np.expand_dims([np.abs(np.sign(np.dot(i, 1))) for i in x_binary], axis=-1)
-        mask = np.expand_dims([np.abs(np.sign(np.dot(i, r))) for i in x_mask], axis=-1)
+        label = np.expand_dims([np.sign(i) for i in x_binary], axis=-1)
+        mask = np.expand_dims([1 - np.sign(i) for i in x_mask], axis=-1)
 
     return label, mask
 
@@ -92,7 +90,7 @@ def load_split(path):
 
 
 def save_image(image_name, image):
-    cv2.imwrite(image_name + '.jpg', image)
+    cv2.imwrite(image_name + '.png', image)
 
 
 # def convert_mask_to_pix(mask):
@@ -100,8 +98,10 @@ def save_image(image_name, image):
 
 def convert_mask_to_pix(mask, the_mask):
     return \
-        np.expand_dims(mask, -1) * np.array([[[0, -128, 0]]]) + np.array([[[0, 128, 0]]])\
-        + the_mask*np.array([[[0, 0, 64]]])
+        (mask * np.array([[[0, 32, 64]]])
+         + the_mask * np.array([[[0, 128, 128]]])
+         + mask * the_mask * np.array([[[0, -160, -64]]])
+         + np.array([[[0, 0, 0]]])).astype(int)
 
 
 def save_masks_cmp(images, pred_masks, real_masks, the_mask, path):
@@ -114,9 +114,8 @@ def save_masks_cmp(images, pred_masks, real_masks, the_mask, path):
     counter = 0
     for image, pred, real, th_mask in zip(images, pred_masks, real_masks, the_mask):
         save_image(saveFolder + '//img_' + str(counter), image)
-        mask_pred_image = convert_mask_to_pix(pred, th_mask)
+        mask_pred_image = convert_mask_to_pix(np.expand_dims(pred, -1), th_mask)
         save_image(saveFolder + '//img_' + str(counter) + '_pred', mask_pred_image)
         mask_image_real = convert_mask_to_pix(real, th_mask)
         save_image(saveFolder + '//img_' + str(counter) + '_real', mask_image_real)
         counter += 1
-
