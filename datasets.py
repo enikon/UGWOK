@@ -100,8 +100,8 @@ def save_image(image_name, image):
 
 def convert_mask_to_pix(mask, the_mask):
     return \
-        mask*np.array([[[[0, -128, 0]]]]) + np.array([[[[0, 128, 128]]]])\
-        - the_mask*np.array([[[[0, 0, -128]]]])
+        np.expand_dims(mask, -1) * np.array([[[0, -128, 0]]]) + np.array([[[0, 128, 0]]])\
+        + the_mask*np.array([[[0, 0, 64]]])
 
 
 def save_masks_cmp(images, pred_masks, real_masks, the_mask, path):
@@ -112,11 +112,11 @@ def save_masks_cmp(images, pred_masks, real_masks, the_mask, path):
     os.makedirs(saveFolder, exist_ok=True)
 
     counter = 0
-    for image, pred, real in zip(images, pred_masks, real_masks):
+    for image, pred, real, th_mask in zip(images, pred_masks, real_masks, the_mask):
         save_image(saveFolder + '//img_' + str(counter), image)
-        mask_pred_image = convert_mask_to_pix(pred, the_mask)
+        mask_pred_image = convert_mask_to_pix(pred, th_mask)
         save_image(saveFolder + '//img_' + str(counter) + '_pred', mask_pred_image)
-        mask_image_real = convert_mask_to_pix(real, the_mask)
+        mask_image_real = convert_mask_to_pix(real, th_mask)
         save_image(saveFolder + '//img_' + str(counter) + '_real', mask_image_real)
         counter += 1
 
