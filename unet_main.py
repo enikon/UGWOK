@@ -90,11 +90,11 @@ def unet():
 
 
 def create_mask(pred_mask):
-    return np.argmax(pred_mask, axis=-1)
-
-
-def convert_mask_to_pix(mask):
-    return np.array([list(map(lambda x: (0, 0, 128) if x == 1 else (0, 128, 128), row)) for row in mask])
+    if NUMBER_OF_CHANNELS >= 2:
+        x = np.argmax(pred_mask, axis=-1)
+    else:
+        x = np.squeeze(np.rint(pred_mask))
+    return x
 
 
 def add_sample_weights(label, weights):

@@ -95,11 +95,16 @@ def save_image(image_name, image):
     cv2.imwrite(image_name + '.jpg', image)
 
 
-def convert_mask_to_pix(mask):
-    return np.array([list(map(lambda x: (0, 0, 128) if x == 1 else (0, 128, 128), row)) for row in mask])
+# def convert_mask_to_pix(mask):
+#     return np.array([list(map(lambda x: (0, 0, 128) if x == 1 else (0, 128, 128), row)) for row in mask])
+
+def convert_mask_to_pix(mask, the_mask):
+    return \
+        mask*np.array([[[[0, -128, 0]]]]) + np.array([[[[0, 128, 128]]]])\
+        - the_mask*np.array([[[[0, 0, -128]]]])
 
 
-def save_masks_cmp(images, pred_masks, real_masks, path):
+def save_masks_cmp(images, pred_masks, real_masks, the_mask, path):
     now = datetime.datetime.now()
 
     current_time = now.strftime("%Y%m%d-%H%M%S")
@@ -109,9 +114,9 @@ def save_masks_cmp(images, pred_masks, real_masks, path):
     counter = 0
     for image, pred, real in zip(images, pred_masks, real_masks):
         save_image(saveFolder + '//img_' + str(counter), image)
-        mask_pred_image = convert_mask_to_pix(pred)
+        mask_pred_image = convert_mask_to_pix(pred, the_mask)
         save_image(saveFolder + '//img_' + str(counter) + '_pred', mask_pred_image)
-        mask_image_real = convert_mask_to_pix(real)
+        mask_image_real = convert_mask_to_pix(real, the_mask)
         save_image(saveFolder + '//img_' + str(counter) + '_real', mask_image_real)
         counter += 1
 

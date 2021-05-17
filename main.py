@@ -59,6 +59,6 @@ if __name__ == '__main__':
     model, model_history = train_unet(sets)
     evaluate_unet(model, sets)
     pred_masks = predict_unet(model, sets[2][0])
-    save_masks_cmp(sets[2][0], pred_masks, sets[2][1])
+    save_masks_cmp(sets[2][0], pred_masks, sets[2][1], sets[2][2], '../results')
 
     h = 0
