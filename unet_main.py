@@ -10,9 +10,9 @@ from metrics import UpdatedThresholdMeanIoU, SteppedMeanIoU
 def unet_compile(model):
     model.compile(
         optimizer='adam',
-        loss=tf.keras.losses.BinaryCrossentropy() if NUMBER_OF_CHANNELS == 1 else tf.keras.metrics.SparseCategoricalCrossentropy(),
+        loss=tf.keras.losses.BinaryCrossentropy() if NUMBER_OF_CHANNELS == 1 else tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=[
-            tf.keras.metrics.BinaryAccuracy() if NUMBER_OF_CHANNELS == 1 else tf.keras.metrics.Accuracy()
+            tf.keras.metrics.BinaryAccuracy() if NUMBER_OF_CHANNELS == 1 else 'accuracy'
             , UpdatedThresholdMeanIoU(NUMBER_OF_CHANNELS, 0.5)
             , SteppedMeanIoU(num_classes=NUMBER_OF_CHANNELS, thresholds=THRESHOLDS)
             # , iou, iou_binary, mean_ap
@@ -78,9 +78,11 @@ def unet():
     )  # 64x64 -> 128x128
 
     x = last(x)
-    if NUMBER_OF_CHANNELS >= 2:
-        x = tf.keras.activations.softmax(x)
-    else:
+    # if NUMBER_OF_CHANNELS >= 2:
+    #     x = tf.keras.activations.softmax(x)
+    # else:
+    #     x = tf.keras.activations.sigmoid(x)
+    if NUMBER_OF_CHANNELS == 1:
         x = tf.keras.activations.sigmoid(x)
 
     model = tf.keras.Model(inputs=inputs, outputs=x)
@@ -109,8 +111,7 @@ def train_unet(sets):
     model = unet()
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
-    m_ckpt_cb = tf.keras.callbacks.ModelCheckpoint(filepath='../models/last.h5',
-                                                   save_freq=math.ceil(sets[0][0].shape[0] / BATCH_SIZE), verbose=1)
+    m_ckpt_cb = tf.keras.callbacks.ModelCheckpoint(filepath='../models/last.h5', save_freq='epoch', verbose=1)
     m_best_ckpt_cb = tf.keras.callbacks.ModelCheckpoint(filepath='../models/best.h5', save_best_only=True, verbose=1)
 
     # sample_weights = add_sample_weights(sets[0][1], [1.0, 1.5])

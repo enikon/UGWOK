@@ -20,7 +20,7 @@ def augment_data(images, masks, times=1):
     transform_train = albu.Compose([
         albu.Flip(),
         albu.RandomRotate90(),
-        albu.RandomResizedCrop(height=IMAGE_DIM_SIZE, width=IMAGE_DIM_SIZE, scale=(0.5, 1.0), p=0.5)
+        # albu.RandomResizedCrop(height=IMAGE_DIM_SIZE, width=IMAGE_DIM_SIZE, scale=(0.5, 1.0), p=0.5)
     ])
 
     for i in range(times):
@@ -93,15 +93,15 @@ def save_image(image_name, image):
     cv2.imwrite(image_name + '.png', image)
 
 
-# def convert_mask_to_pix(mask):
-#     return np.array([list(map(lambda x: (0, 0, 128) if x == 1 else (0, 128, 128), row)) for row in mask])
-
 def convert_mask_to_pix(mask, the_mask):
-    return \
-        (mask * np.array([[[0, 32, 64]]])
-         + the_mask * np.array([[[0, 128, 128]]])
-         + mask * the_mask * np.array([[[0, -160, -64]]])
-         + np.array([[[0, 0, 0]]])).astype(int)
+    if NUMBER_OF_CHANNELS >= 2:
+        return np.array([list(map(lambda x: (0, 0, 128) if x == 1 else (0, 128, 128), row)) for row in mask])
+    else:
+        return \
+            (mask * np.array([[[0, 32, 64]]])
+             + the_mask * np.array([[[0, 128, 128]]])
+             + mask * the_mask * np.array([[[0, -160, -64]]])
+             + np.array([[[0, 0, 0]]])).astype(int)
 
 
 def save_masks_cmp(images, pred_masks, real_masks, the_mask, path):
