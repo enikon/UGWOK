@@ -1,8 +1,9 @@
 import numpy as np
 import cv2
 import albumentations as albu
-from common import *
+from common import NUMBER_OF_CHANNELS, IMAGE_DIM_SIZE, AUGMENTATION_MULTIPLIER
 import os
+import datetime
 
 
 def read_images(imges_names, path, dim_size):
@@ -86,5 +87,31 @@ def save_split(x, path):
 
 def load_split(path):
     with open(path, 'rb') as f:
-        np.loadtxt(f, x, fmt='%s', delimiter='\n')
+        x = np.loadtxt(f, dtype=str, delimiter='\n')
     return x
+
+
+def save_image(image_name, image):
+    cv2.imwrite(image_name + '.jpg', image)
+
+
+def convert_mask_to_pix(mask):
+    return np.array([list(map(lambda x: (0, 0, 128) if x == 1 else (0, 128, 128), row)) for row in mask])
+
+
+def save_masks_cmp(images, pred_masks, real_masks, path):
+    now = datetime.datetime.now()
+
+    current_time = now.strftime("%Y%m%d-%H%M%S")
+    saveFolder = os.path.join(path, 'predictions__' + current_time)
+    os.makedirs(saveFolder, exist_ok=True)
+
+    counter = 0
+    for image, pred, real in zip(images, pred_masks, real_masks):
+        save_image(saveFolder + '//img_' + str(counter), image)
+        mask_pred_image = convert_mask_to_pix(pred)
+        save_image(saveFolder + '//img_' + str(counter) + '_pred', mask_pred_image)
+        mask_image_real = convert_mask_to_pix(real)
+        save_image(saveFolder + '//img_' + str(counter) + '_real', mask_image_real)
+        counter += 1
+

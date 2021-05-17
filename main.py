@@ -1,24 +1,20 @@
 import os
-import tensorflow as tf
+import numpy as np
 import argparse
+import tensorflow as tf
 
-from unet_main import *
-from datasets import *
+from unet_main import evaluate_unet, predict_unet, train_unet
+from datasets import extract_x_y_mask, save_split, save_masks_cmp
 
 # FOR DEBUGGING
 # tf.config.experimental_run_functions_eagerly(True)
 
+physical_devices = tf.config.experimental.list_physical_devices('GPU')
+assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
 
 if __name__ == '__main__':
-#def main():
-
-    physical_devices = tf.config.list_physical_devices('GPU')
-    try:
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
-    except:
-        # Invalid device or cannot modify virtual devices once initialized.
-        exit(1)
-        pass
 
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--dataset', default='../dataset')

@@ -1,9 +1,22 @@
-import os
-from datetime import datetime
+import tensorflow as tf
 import math
 import cv2
+import numpy as np
 
-from metrics import *
+from common import NUMBER_OF_CHANNELS, IMAGE_DIM_SIZE, THRESHOLDS, BATCH_SIZE, EPOCHS
+from metrics import UpdatedThresholdMeanIoU, SteppedMeanIoU
+
+
+def unet_compile(model):
+    model.compile(
+        optimizer='adam',
+        loss=tf.keras.losses.BinaryCrossentropy() if NUMBER_OF_CHANNELS == 1 else tf.keras.metrics.SparseCategoricalCrossentropy(),
+        metrics=[
+            tf.keras.metrics.BinaryAccuracy() if NUMBER_OF_CHANNELS == 1 else tf.keras.metrics.Accuracy()
+            , UpdatedThresholdMeanIoU(NUMBER_OF_CHANNELS, 0.5)
+            , SteppedMeanIoU(num_classes=NUMBER_OF_CHANNELS, thresholds=THRESHOLDS)
+            # , iou, iou_binary, mean_ap
+        ])
 
 
 def unet_pretrained_encoder():
@@ -70,11 +83,10 @@ def unet():
     else:
         x = tf.keras.activations.sigmoid(x)
 
-    return tf.keras.Model(inputs=inputs, outputs=x)
+    model = tf.keras.Model(inputs=inputs, outputs=x)
+    unet_compile(model)
 
-
-def save_image(image_name, image):
-    cv2.imwrite(image_name + '.jpg', image)
+    return model
 
 
 def create_mask(pred_mask):
@@ -94,25 +106,11 @@ def add_sample_weights(label, weights):
 
 def train_unet(sets):
 
-    BATCH_SIZE = 4
-    EPOCHS = 100
-
     model = unet()
-    model.compile(
-        optimizer='adam',
-        loss=tf.keras.losses.BinaryCrossentropy(),
-        # FOR DEBUGGING
-        # run_eagerly=True,
-        metrics=[
-            tf.keras.metrics.BinaryAccuracy() if NUMBER_OF_CHANNELS == 1 else tf.keras.metrics.Accuracy()
-            , UpdatedThresholdMeanIoU(NUMBER_OF_CHANNELS, 0.5)
-            , SteppedMeanIoU(num_classes=NUMBER_OF_CHANNELS, thresholds=THRESHOLDS)
-            #, iou, iou_binary, mean_ap
-        ]
-    )
 
     tb_cb = tf.keras.callbacks.TensorBoard(log_dir='../logs')
-    m_ckpt_cb = tf.keras.callbacks.ModelCheckpoint(filepath='../models/last.h5', save_freq=math.ceil(sets[0][0].shape[0] / BATCH_SIZE), verbose=1)
+    m_ckpt_cb = tf.keras.callbacks.ModelCheckpoint(filepath='../models/last.h5',
+                                                   save_freq=math.ceil(sets[0][0].shape[0] / BATCH_SIZE), verbose=1)
     m_best_ckpt_cb = tf.keras.callbacks.ModelCheckpoint(filepath='../models/best.h5', save_best_only=True, verbose=1)
 
     # sample_weights = add_sample_weights(sets[0][1], [1.0, 1.5])
@@ -135,29 +133,12 @@ def evaluate_unet(model, sets):
     model.evaluate(
         x=sets[2][0],
         y=sets[2][1],
-        sample_weight=sets[2][2]
+        sample_weight=sets[2][2],
+        batch_size=BATCH_SIZE
     )
 
 
 def predict_unet(model, test_set):
-    pred_pm = model.predict(x=test_set)
+    pred_pm = model.predict(x=test_set, batch_size=BATCH_SIZE)
     pred_masks = create_mask(pred_pm)
     return pred_masks
-
-
-def save_masks_cmp(images, pred_masks, real_masks):
-    now = datetime.now()
-    current_time = now.strftime("%Y%m%d-%H%M%S")
-    saveFolder = 'predictions__' + current_time
-    os.makedirs(saveFolder)
-
-    counter = 0
-    for image, pred, real in zip(images, pred_masks, real_masks):
-        save_image(saveFolder + '//img_' + str(counter), image)
-        mask_pred_image = convert_mask_to_pix(pred)
-        save_image(saveFolder + '//img_' + str(counter) + '_pred', mask_pred_image)
-        mask_image_real = convert_mask_to_pix(real)
-        save_image(saveFolder + '//img_' + str(counter) + '_real', mask_image_real)
-        counter += 1
-
-
