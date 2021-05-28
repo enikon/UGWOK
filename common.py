@@ -3,5 +3,5 @@ NUMBER_OF_CHANNELS = 1
 THRESHOLDS = [round(x * 0.05, 2) + 0.5 for x in range(0, 10)]  # 0.5 ... 0.95
 AUGMENTATION_MULTIPLIER = 1#15
 
-BATCH_SIZE = 4
+BATCH_SIZE = 1
 EPOCHS = 100

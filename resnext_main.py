@@ -13,21 +13,21 @@ def resnext_layers():
                             groups=32,
                             repeat_num=3),
         build_ResNeXt_block(filters=256,
-                            strides=2,
+                            strides=1,
                             groups=32,
                             repeat_num=4),
         build_ResNeXt_block(filters=512,
-                            strides=2,
+                            strides=1,
                             groups=32,
                             repeat_num=6)
     ]
     up = [
         build_ResNeXt_block(filters=512,
-                            strides=2,
+                            strides=1,
                             groups=32,
                             repeat_num=6),
         build_ResNeXt_block(filters=256,
-                            strides=2,
+                            strides=1,
                             groups=32,
                             repeat_num=4),
         build_ResNeXt_block(filters=128,
@@ -37,7 +37,7 @@ def resnext_layers():
     ]
 
     mid = build_ResNeXt_block(filters=1024,
-                              strides=2,
+                              strides=1,
                               groups=32,
                               repeat_num=3)
 
@@ -59,21 +59,21 @@ def resnext_compile(model):
 
 def resnext():
     inputs = tf.keras.layers.Input(shape=[IMAGE_DIM_SIZE, IMAGE_DIM_SIZE, 3])
-    conv = tf.keras.layers.Conv2D(48, kernel_size=(3, 3))(inputs)
+    conv = tf.keras.layers.Conv2D(48, kernel_size=(3, 3), strides=2, padding='same')(inputs)
     x = conv
 
     down, up, mid = resnext_layers()
-    xout = [None for i in range(len(down))]
+    xout = [None for _ in range(len(down))]
 
     for i, down_i in enumerate(down):
         xout[i] = down_i(x)
-        x = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(x)
+        x = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(xout[i])
     x = mid(x)
 
     embedding = x
-    xout = reversed(xout[:-1])
+    rxout = [i for i in reversed(xout)]
 
-    for up_i, xo in zip(up, xout):
+    for up_i, xo in zip(up, rxout):
         x = tf.keras.layers.UpSampling2D((2, 2))(x)
         x = tf.keras.layers.Concatenate()([x, xo])
         x = up_i(x)
